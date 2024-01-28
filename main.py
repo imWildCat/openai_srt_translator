@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from ast import List
 import srt
 import argparse
 from openai import OpenAI, AzureOpenAI
@@ -26,32 +27,50 @@ def makeprompt():
     prompt = f"""You are a professional translator.
 Translate the text below line by line into {LANG}, do not add any content on your own, and aside from translating, do not produce any other text, you will make the most accurate and authentic to the source translation possible.
 
-these are subtitles, meaning each elements are related and in order, you can use this context to make a better translation.
-you will reply with a json array that only contain the translation."""
+these are subtitles, meaning each elements are related and in order, you can use this context to make a better translation with the original number of lines.
+Please only return an JSON Array of trasnlated object with `index` and `content`, one for each line of the input, where the `content` field has the translated text.
+
+For example, if the input is:
+[{{"index": 1, "content": "Hello, world!"}}, {{ "index": 2, "content": "How are you?"}}]
+the output should be like:
+[{{"index": 1, "content": "Bonjour, monde!"}}, {{ "index": 2, "content": "Comment allez-vous?"}}]
+"""
 
 def makebatch(chunk):
-    return [x.content for x in chunk]
+    return [{'index': x.index, 'content': x.content} for x in chunk]
 
 def translate_batch(batch):
     blen = len(batch)
     tbatch = []
     batch = json.dumps(batch, ensure_ascii=False)
-
+    print(f"[debug] batch: {batch}")
     lendiff = 1
     while lendiff != 0: # TODO add max retry ?
         try:
             completion = client.chat.completions.create(model=MODEL,
+            # response_format={ "type": "json_array" },
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": batch}
             ])
-            tbatch = json.loads(completion.choices[0].message.content)
+            tbatch_wip = json.loads(completion.choices[0].message.content)
+            if "translation" in tbatch_wip:
+                tbatch = tbatch_wip["translation"]
+            elif "translations" in tbatch_wip:
+                tbatch = tbatch_wip["translations"]
+            elif "subtitles" in tbatch_wip:
+                tbatch = tbatch_wip["subtitles"]
+            elif "translatedTexts" in tbatch_wip:
+                tbatch = tbatch_wip["translatedTexts"]
+            else:
+                tbatch = tbatch_wip
         except Exception as e:
             if VERBOSE:
                 print(e)
             lendiff = 1
         else:
             lendiff = len(tbatch) - blen
+            print(f"lendiff: {lendiff}, tbatch: {tbatch}, blen: {blen}")
     return tbatch
 
 def translate_file(subs):
@@ -61,10 +80,12 @@ def translate_file(subs):
 
         chunk = subs[i:i+BATCHSIZE]
         batch = makebatch(chunk)
+        print(f"made batch {batch}")
         batch = translate_batch(batch)
 
         for j, n in enumerate(batch):
-            chunk[j].content = n
+            print("[debug] n: ", n)
+            chunk[j].content = n["content"]
 
 def get_translated_filename(filepath):
     root, ext = os.path.splitext(os.path.basename(filepath))
