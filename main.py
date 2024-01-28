@@ -2,17 +2,16 @@
 
 import srt
 import argparse
-import openai
+from openai import OpenAI
 import json
 import os
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-if not openai.api_key:
-    exit("Error: OPENAI_API_KEY is not defined. Please set the environment variable and try again.")
+
 
 BATCHSIZE = 50 # later i may use a token conter instead but this is simpler for now
-LANG = "french"
+LANG = "English"
 MODEL = "gpt-3.5-turbo"
 VERBOSE = False
 
@@ -35,13 +34,11 @@ def translate_batch(batch):
     lendiff = 1
     while lendiff != 0: # TODO add max retry ?
         try:
-            completion = openai.ChatCompletion.create(
-                model=MODEL,
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": batch}
-                ]
-            )
+            completion = client.chat.completions.create(model=MODEL,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": batch}
+            ])
             tbatch = json.loads(completion.choices[0].message.content)
         except Exception as e:
             if VERBOSE:
