@@ -2,13 +2,19 @@
 
 import srt
 import argparse
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 import json
 import os
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+DEPLOYMENT_ID = os.getenv("AZURE_DEPLOYMENT_ID")
+AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-
+if DEPLOYMENT_ID and AZURE_ENDPOINT:
+    client = AzureOpenAI(azure_deployment=DEPLOYMENT_ID, azure_endpoint=AZURE_ENDPOINT, api_key=OPENAI_API_KEY, api_version="2023-07-01-preview")
+    print("using azure")
+else:
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
 BATCHSIZE = 50 # later i may use a token conter instead but this is simpler for now
 LANG = "English"
@@ -64,23 +70,12 @@ def get_translated_filename(filepath):
     root, ext = os.path.splitext(os.path.basename(filepath))
     return f"{root}_{LANG}{ext}"
 
-def main():
-    parser = argparse.ArgumentParser(description="Translate srt files")
-    parser.add_argument("files", help="File pattern to match",nargs="+")
-    parser.add_argument("-l", "--language", help="Specify the language", default="french", type=str)
-    parser.add_argument("-b", "--batch_size", help="Specify the batch size", default=50, type=int)
-    parser.add_argument("-m", "--model", help="openai's model to use", default="gpt-3.5-turbo", type=str)
-    parser.add_argument("-v", "--verbose", help="display errors", action="store_true")
-
-    args = parser.parse_args()
-
-    files = args.files
-
+def main(files: str, language: str ="french", batch_size: int=50, model: str="gpt-3.5-turbo", verbose=False):
     global LANG, BATCHSIZE, MODEL, VERBOSE
-    LANG = args.language
-    BATCHSIZE = args.batch_size
-    MODEL = args.model
-    VERBOSE = args.verbose
+    LANG = language
+    BATCHSIZE = batch_size
+    MODEL = model
+    VERBOSE = verbose
     makeprompt()
 
     if not files:
@@ -92,11 +87,6 @@ def main():
         sub = open(filename).read()
         subs = list(srt.parse(sub))
 
-        # batch = makebatch(subs[10:15])
-        # print(batch)
-        # tbatch = translate_batch(batch)
-        # print(tbatch)
-
         translate_file(subs)
         output = srt.compose(subs)
 
@@ -104,4 +94,13 @@ def main():
             handle.write(output)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Translate srt files")
+    parser.add_argument("files", help="File pattern to match",nargs="+")
+    parser.add_argument("-l", "--language", help="Specify the language", default="french", type=str)
+    parser.add_argument("-b", "--batch_size", help="Specify the batch size", default=50, type=int)
+    parser.add_argument("-m", "--model", help="openai's model to use", default="gpt-3.5-turbo", type=str)
+    parser.add_argument("-v", "--verbose", help="display errors", action="store_true")
+
+    args = parser.parse_args()
+
+    main(args.files, args.language, args.batch_size, args.model, args.verbose)
