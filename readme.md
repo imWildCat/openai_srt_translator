@@ -27,7 +27,7 @@ Or get help:
 ## Usage
 
 ```bash
-usage: main.py [-h] [-l LANGUAGE] [-b BATCH_SIZE] [-m MODEL] files [files ...]
+usage: main.py [-h] [-l LANGUAGE] [-b BATCH_SIZE] [-m MODEL] [-v] [-w WORKERS] files [files ...]
 
 Translate srt files
 
@@ -42,4 +42,7 @@ options:
                         Specify the batch size
   -m MODEL, --model MODEL
                         openai's model to use
+  -v, --verbose         display errors
+  -w WORKERS, --workers WORKERS
+                        number of workers for processing long file concurrently
 ```
