@@ -2,10 +2,9 @@
 
 import srt
 import argparse
+from openai import OpenAI, AzureOpenAI
 import json
 import os
-import pickle
-from openai import OpenAI, AzureOpenAI
 
 DEPLOYMENT_ID = os.getenv("AZURE_DEPLOYMENT_ID")
 AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
@@ -17,11 +16,10 @@ if DEPLOYMENT_ID and AZURE_ENDPOINT:
 else:
     client = OpenAI(api_key=OPENAI_API_KEY)
 
-BATCHSIZE = 50
+BATCHSIZE = 50 # later i may use a token conter instead but this is simpler for now
 LANG = "English"
 MODEL = "gpt-3.5-turbo"
 VERBOSE = False
-PICKLE_FILE = "translation_progress.pkl"
 
 def makeprompt():
     global prompt
@@ -40,7 +38,7 @@ def translate_batch(batch):
     batch = json.dumps(batch, ensure_ascii=False)
 
     lendiff = 1
-    while lendiff != 0:
+    while lendiff != 0: # TODO add max retry ?
         try:
             completion = client.chat.completions.create(model=MODEL,
             messages=[
@@ -56,9 +54,9 @@ def translate_batch(batch):
             lendiff = len(tbatch) - blen
     return tbatch
 
-def translate_file(subs, start_index=0):
+def translate_file(subs):
     total_batch = (len(subs) + BATCHSIZE - 1) // BATCHSIZE
-    for i in range(start_index, len(subs), BATCHSIZE):
+    for i in range(0, len(subs), BATCHSIZE):
         print(f"batch {i//BATCHSIZE + 1} / {total_batch}")
 
         chunk = subs[i:i+BATCHSIZE]
@@ -68,21 +66,9 @@ def translate_file(subs, start_index=0):
         for j, n in enumerate(batch):
             chunk[j].content = n
 
-        save_progress(subs, i+BATCHSIZE)
-
 def get_translated_filename(filepath):
     root, ext = os.path.splitext(os.path.basename(filepath))
     return f"{root}_{LANG}{ext}"
-
-def save_progress(subs, current_index):
-    with open(PICKLE_FILE, 'wb') as pfile:
-        pickle.dump({'subs': subs, 'current_index': current_index}, pfile)
-
-def load_progress():
-    if os.path.exists(PICKLE_FILE):
-        with open(PICKLE_FILE, 'rb') as pfile:
-            return pickle.load(pfile)
-    return None
 
 def main(files: str, language: str ="English", batch_size: int=50, model: str="gpt-3.5-turbo", verbose=False):
     global LANG, BATCHSIZE, MODEL, VERBOSE
@@ -98,29 +84,18 @@ def main(files: str, language: str ="English", batch_size: int=50, model: str="g
 
     for filename in files:
         print(filename)
-        progress = load_progress()
+        sub = open(filename).read()
+        subs = list(srt.parse(sub))
 
-        if progress and progress['subs']:
-            subs = progress['subs']
-            start_index = progress['current_index']
-        else:
-            sub = open(filename).read()
-            subs = list(srt.parse(sub))
-            start_index = 0
-
-        translate_file(subs, start_index)
+        translate_file(subs)
         output = srt.compose(subs)
 
-        with open(get_translated_filename(filename), "w") as handle:
+        with open(get_translated_filename(filename),"w") as handle:
             handle.write(output)
-
-        # Remove pickle file after successful completion
-        if os.path.exists(PICKLE_FILE):
-            os.remove(PICKLE_FILE)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Translate srt files")
-    parser.add_argument("files", help="File pattern to match", nargs="+")
+    parser.add_argument("files", help="File pattern to match",nargs="+")
     parser.add_argument("-l", "--language", help="Specify the language", default="English", type=str)
     parser.add_argument("-b", "--batch_size", help="Specify the batch size", default=50, type=int)
     parser.add_argument("-m", "--model", help="openai's model to use", default="gpt-3.5-turbo", type=str)
