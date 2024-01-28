@@ -1,3 +1,5 @@
+# openai_srt_translator
+
 the point of this project is to easily translate srt files when i need to because my gf doesn't understand english.  
 subtitles are translated in batches of 50 by default, use the `-b` flag to change it.  
 the default model is `gpt-3.5-turbo` but you can always use `-m gpt-4`.  
@@ -8,7 +10,21 @@ however, another objective is to have it being simple enough to fit in a single 
 
 this could probably be used along some text to speech software such as whisper for some pretty cool results.
 
-# Usage
+## Usage (TLDR)
+
+```shell
+export OPENAI_API_KEY=(your key here...)
+
+./main.sh -m gpt-3.5-turbo -l English -b 35 ./path/to/your.srt
+```
+
+Or get help:
+
+```shell
+./main.sh -h
+```
+
+## Usage
 
 ```bash
 usage: main.py [-h] [-l LANGUAGE] [-b BATCH_SIZE] [-m MODEL] files [files ...]
