@@ -70,7 +70,7 @@ def get_translated_filename(filepath):
     root, ext = os.path.splitext(os.path.basename(filepath))
     return f"{root}_{LANG}{ext}"
 
-def main(files: str, language: str ="french", batch_size: int=50, model: str="gpt-3.5-turbo", verbose=False):
+def main(files: str, language: str ="English", batch_size: int=50, model: str="gpt-3.5-turbo", verbose=False):
     global LANG, BATCHSIZE, MODEL, VERBOSE
     LANG = language
     BATCHSIZE = batch_size
@@ -96,7 +96,7 @@ def main(files: str, language: str ="french", batch_size: int=50, model: str="gp
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Translate srt files")
     parser.add_argument("files", help="File pattern to match",nargs="+")
-    parser.add_argument("-l", "--language", help="Specify the language", default="french", type=str)
+    parser.add_argument("-l", "--language", help="Specify the language", default="English", type=str)
     parser.add_argument("-b", "--batch_size", help="Specify the batch size", default=50, type=int)
     parser.add_argument("-m", "--model", help="openai's model to use", default="gpt-3.5-turbo", type=str)
     parser.add_argument("-v", "--verbose", help="display errors", action="store_true")
